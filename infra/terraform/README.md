@@ -1,55 +1,39 @@
 # Terraform
 
-Terraform describes FanMap42's long-lived Cloudflare account and zone
-configuration. Worker artifacts remain versioned release outputs managed by
-Wrangler.
+This directory describes the Cloudflare resources that sit between clients and
+FanMap42's R2 tile bucket. Its purpose is to make map delivery cheap and
+predictable while leaving Worker releases to Wrangler.
 
-## Current ownership
+## Intended behavior
 
-Terraform currently declares:
+Map releases use immutable paths. Cloudflare can therefore cache successful
+tile responses without checking R2 again. Smart Tiered Cache reduces duplicate
+origin reads across edge locations, and query strings are removed from tile
+cache keys so equivalent requests share the same cached object.
 
-- the `fanmap42` R2 bucket;
-- Smart Tiered Cache;
-- cache settings for immutable map releases;
-- tile URL normalization rules;
-- Worker version-affinity headers used during gradual deployments; and
-- the small set of zone redirects that remain outside the viewer bundle.
+Missing tiles are expected in a sparse map. The cache rules retain `404` and
+`410` responses for 30 days, which prevents repeated R2 lookups for known gaps.
+Server errors are not cached.
 
-Wrangler owns:
+Gradual Worker deployments use a version-affinity header derived from the
+client IP. That keeps a client on one version during a rollout instead of
+moving it between candidates on successive requests.
 
-- `fanmap42-site`, `fanmap42-hottiles`, and `fanmap42-www-redirect` artifacts;
-- Workers Static Assets uploads;
-- Worker custom domains and routes; and
-- version deployments and traffic percentages.
+A redirect ruleset keeps old same-origin tile URLs working by sending them to
+the corresponding immutable R2 release. Current viewers already request
+release-qualified URLs, so this rule is only for older links and clients.
 
-R2 CORS and custom-domain settings are still configured outside this Terraform
-state. The pinned Cloudflare provider supports `cloudflare_r2_bucket_cors` and
-`cloudflare_r2_custom_domain`, so these can be adopted later with the same
-import-and-no-op-plan process; they are no longer excluded as provider gaps.
+The R2 bucket has deletion protection because it contains the canonical map
+releases. The import blocks associate the declarations here with resources
+that already existed in Cloudflare; they are not instructions to recreate
+those resources.
 
-## Reconciliation workflow
+## Scope
 
-Most resources existed before this repository. Import blocks associate those
-objects with their declarations without creating replacements.
+Terraform covers the `fanmap42` R2 bucket, tiered cache, cache settings, tile
+URL normalization, Worker version affinity, and the remaining tile redirect.
 
-```sh
-terraform -chdir=infra/terraform init
-terraform -chdir=infra/terraform fmt -check
-terraform -chdir=infra/terraform validate
-terraform -chdir=infra/terraform plan -var-file=/path/to/fanmap42.tfvars
-```
-
-Before Terraform is allowed to apply changes to an existing resource:
-
-1. update its declaration to match production;
-2. import it into state;
-3. review a zero-change plan; and
-4. protect resources whose replacement would interrupt production.
-
-The current reconciliation state is local and ignored by Git. Move it to a
-remote encrypted backend before enabling automated plans or applies. Use
-`CLOUDFLARE_API_TOKEN` for authentication and keep credentials and real
-`.tfvars` files out of the repository.
-
-Terraform changes do not publish viewer or hottiles releases. Those continue
-through the tested Wrangler version and gradual-deployment workflow.
+It does not build or publish `fanmap42-site`, `fanmap42-hottiles`, or
+`fanmap42-www-redirect`. Those are versioned Static Assets/Worker releases
+managed with Wrangler. R2 CORS and the R2 custom domain are also currently
+outside this Terraform state.
