@@ -4,7 +4,7 @@ Cloudflare Workers and edge configuration for [FanMap42](https://fanmap42.com).
 
 ## Components
 
-- `fanmap42-site`: viewer Static Assets plus a small legacy map-data gateway
+- `fanmap42-site`: viewer served entirely by Workers Static Assets
 - `fanmap42-hottiles`: selected immutable tiles served as Static Assets
 - `fanmap42-www-redirect`: canonical-host redirect
 - `infra/terraform`: import-first Cloudflare infrastructure baseline
@@ -26,21 +26,14 @@ exactly the files named by its manifest. If a hottiles request fails, the viewer
 retries the same release path at `tiles.fanmap42.com`; tiles not in the hot
 manifest go there directly.
 
-Matching viewer assets on `fanmap42.com` are also served before Worker code. The
-site Worker is therefore limited to health checks, non-tile `/map_data/`
-compatibility requests, locally generated `robots.txt`, and redirects for legacy
-same-origin tile URLs. Other Static Assets misses return 404 without probing R2.
-
-### Static-only target
-
-The site can drop its Worker entirely once every supported viewer loads
-`/map_data/` metadata from the release-qualified tile origin. Before that
-cutover, verify the metadata redirects, CORS, conditional requests, and error
-behavior on a 0%-traffic production candidate, then confirm route telemetry no
-longer shows a required `map_compat` request. At that point `robots.txt` and the health
-document become ordinary assets, the legacy tile redirect moves to an edge
-redirect rule, and the site configuration can remove `main`, R2, Analytics
-Engine, version metadata, and all Worker variables.
+`fanmap42-site` also has no Worker script or bindings. Root viewer files and the
+retained immutable client releases are Static Assets. Every supported viewer
+loads map metadata and tiles from a release-qualified path on
+`tiles.fanmap42.com`. A generated Static Assets redirect sends legacy
+same-origin `/map_data/*` requests to the current release-qualified tile origin,
+without invoking code or probing R2 through the site. Other missing assets
+return 404. `robots.txt` and `/.well-known/fanmap42-health` are generated static
+files; other legacy URL behavior belongs in the zone redirect rules.
 
 ## Development
 
@@ -49,8 +42,25 @@ Requires Node.js 24 or newer.
 ```sh
 npm ci
 npm run check
+```
+
+### Building the site
+
+The committed [site build configuration](site/production.json) records the
+current client and map releases. Build from an assembled viewer release:
+
+```sh
+npm run build:site -- --source /path/to/assembled/viewer
 npm run dev
 ```
+
+The build verifies the root manifest, release metadata, retained r6/r7/r8
+clients, and each release-qualified map route. It also generates the temporary
+legacy map-data redirect, health document, and robots file. It atomically creates
+`.generated/site/production` and refuses to overwrite an existing bundle. The
+production Wrangler configuration contains only Static Assets and the custom
+domain: it has no script, R2 binding, Analytics Engine binding, variables, or
+version-metadata binding.
 
 ### Building hottiles
 

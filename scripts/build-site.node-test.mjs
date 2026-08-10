@@ -1,0 +1,101 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { test } from "node:test";
+import { buildSite, validateMapRoute } from "./build-site.mjs";
+
+const clients = {
+  "client-r6": "map-r1",
+  "client-r7": "map-r1",
+  "client-r8": "map-r2",
+};
+
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const route = (release) => `https://tiles.example/releases/${release}/map_data/`;
+
+async function write(root, path, bytes) {
+  const target = join(root, path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, bytes);
+}
+
+async function createSource(root) {
+  const source = join(root, "source");
+  const assets = new Map([
+    ["RELEASE.json", `${JSON.stringify({ release_id: "client-r8", map_release: "map-r2" })}\n`],
+    ["_headers", "/*\n  X-Content-Type-Options: nosniff\n"],
+    ["pzmap.html", "<!doctype html><title>FanMap42</title>\n"],
+    ["pzmap_config.json", `${JSON.stringify({ route: { default: route("map-r2") } })}\n`],
+  ]);
+  for (const [client, mapRelease] of Object.entries(clients)) {
+    assets.set(`_client/${client}/pzmap_config.json`,
+      `${JSON.stringify({ route: { default: route(mapRelease) } })}\n`);
+  }
+  for (const [path, bytes] of assets) await write(source, path, bytes);
+
+  const manifest = [...assets.entries()]
+    .filter(([path]) => path !== "_headers")
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([path, bytes]) => `${sha256(bytes)}  ./${path}`)
+    .join("\n") + "\n";
+  await write(source, "MANIFEST.sha256", manifest);
+  const manifestHash = sha256(manifest);
+  await write(source, "READY", `release_id=client-r8\nmanifest_sha256=${manifestHash}\n`);
+  return { source, manifestHash };
+}
+
+async function writeConfig(root, manifestHash) {
+  const configPath = join(root, "production.json");
+  await writeFile(configPath, `${JSON.stringify({
+    schema: "fanmap42.site-build.v1",
+    client_release: "client-r8",
+    client_manifest_sha256: manifestHash,
+    map_release: "map-r2",
+    map_manifest_sha256: "a".repeat(64),
+    tile_origin: "https://tiles.example",
+    supported_clients: clients,
+    output: "output",
+    max_assets: 100,
+    max_asset_bytes: 1024 * 1024,
+  }, null, 2)}\n`);
+  return configPath;
+}
+
+test("rejects a viewer route that would re-enter the site Worker", () => {
+  const config = { tile_origin: "https://tiles.example" };
+  assert.throws(
+    () => validateMapRoute(config, "map_data/", "map-r2", "pzmap_config.json"),
+    /must load all map data/,
+  );
+});
+
+test("builds a static-only site with operational assets", async () => {
+  const root = await mkdtemp(join(tmpdir(), "fanmap42-site-test-"));
+  try {
+    const { source, manifestHash } = await createSource(root);
+    const configPath = await writeConfig(root, manifestHash);
+    const result = await buildSite({ configPath, sourceRoot: source });
+    const output = join(root, "output");
+
+    assert.equal(result.client_release, "client-r8");
+    assert.deepEqual(result.supported_clients, ["client-r6", "client-r7", "client-r8"]);
+    assert.match(await readFile(join(output, "robots.txt"), "utf8"), /User-agent: \*/);
+    const health = JSON.parse(await readFile(join(output, ".well-known/fanmap42-health"), "utf8"));
+    assert.deepEqual({ status: health.status, delivery: health.delivery },
+      { status: "ok", delivery: "static-assets" });
+    assert.equal(health.client_manifest_sha256, manifestHash);
+    const headers = await readFile(join(output, "_headers"), "utf8");
+    assert.match(headers, /\/\.well-known\/fanmap42-health\n  Content-Type: application\/json/);
+    assert.match(headers, /\/robots\.txt\n  Content-Type: text\/plain/);
+    assert.equal(
+      await readFile(join(output, "_redirects"), "utf8"),
+      "/map_data/* https://tiles.example/releases/map-r2/map_data/:splat 307\n",
+    );
+    assert.equal(await readFile(join(output, "pzmap.html"), "utf8"),
+      "<!doctype html><title>FanMap42</title>\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
