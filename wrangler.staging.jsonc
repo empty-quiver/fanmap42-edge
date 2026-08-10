@@ -4,19 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-08",
   "compatibility_flags": ["nodejs_compat"],
-  "cache": {
-    "enabled": true,
-    "cross_version_cache": false
-  },
-  "exports": {
-    "default": { "type": "worker", "cache": { "enabled": false } },
-    "AssetBackend": { "type": "worker", "cache": { "enabled": true } }
-  },
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "workers_dev": true,
   "assets": {
     "directory": "./.generated/site/staging",
-    "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none",
     "run_worker_first": false
@@ -27,17 +18,10 @@
   "vars": {
     "ACTIVE_RELEASE": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
     "EXPECTED_MANIFEST_SHA256": "e9a39b6407a23b6e2a69a4d1330c4c1bec86c013415d930b6bfe5840c8f60674",
-    "CLIENT_ASSET_RELEASE": "staging-client-hotfallback-20260809-r13",
-    "CLIENT_ASSET_MANIFEST_SHA256": "4c1d3641ed6f9df3ef1584c7dcd399920334861638bf6830e0420835eed61980",
     "CANONICAL_HOST": "staging.fanmap42.com",
-    "USE_WORKERS_CACHE_GATEWAY": "1",
+    "DIRECT_TILE_ORIGIN": "https://tiles-staging.fanmap42.com",
     "READINESS_CACHE_SECONDS": "86400",
-    "NEGATIVE_TILE_CACHE_SECONDS": "2592000",
-    "NEGATIVE_METADATA_CACHE_SECONDS": "300",
-    "NEGATIVE_VIEWER_ASSET_CACHE_SECONDS": "300",
-    "ENFORCE_MAP_LAYER_BOUNDS": "1",
-    "MAP_LAYER_MIN": "-17",
-    "MAP_LAYER_MAX_EXCLUSIVE": "30"
+    "NEGATIVE_METADATA_CACHE_SECONDS": "300"
   },
   "r2_buckets": [
     { "binding": "BUCKET", "bucket_name": "fanmap42" }

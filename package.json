@@ -7,11 +7,13 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:hottiles": "node scripts/build-hottiles.mjs",
     "check": "npm run typecheck && npm test",
     "dev": "wrangler dev --config wrangler.jsonc",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/*.node-test.mjs",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "wrangler types ./src/env.d.ts --include-runtime false --check && tsc --noEmit",
+    "types": "wrangler types ./src/env.d.ts --include-runtime false"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260810.1",

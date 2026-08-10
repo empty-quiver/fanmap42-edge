@@ -1,0 +1,16 @@
+{
+  "schema": "fanmap42.hottiles-build.v1",
+  "release": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r2",
+  "manifest": "hot-tile-existence-v1.json",
+  "manifest_sha256": "a1e5a3b23cf4c7f6b4ea3bb29eb4dffac1a241c62bf57b77f0b317e82c02e5d1",
+  "output": "../.generated/hottiles/production",
+  "extensions": {
+    "default": "webp",
+    "sources": {
+      "base/layer0": "jpg"
+    }
+  },
+  "copy_concurrency": 32,
+  "max_assets": 100000,
+  "max_asset_bytes": 26214400
+}

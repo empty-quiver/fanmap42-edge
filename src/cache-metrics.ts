@@ -1,5 +1,5 @@
 export const CACHE_METRIC_SCHEMA = "asset_cache_v1";
-export const WORKERS_CACHE_METRIC_SCHEMA = "workers_cache_v1";
+export const SITE_ROUTE_METRIC_SCHEMA = "site_route_v1";
 export const MAX_METRIC_ASSET_PATH_LENGTH = 1024;
 
 export type AssetCacheOutcome =
@@ -8,8 +8,7 @@ export type AssetCacheOutcome =
   | "miss"
   | "miss_not_found"
   | "miss_r2_error"
-  | "lookup_error"
-  | "invalid_map_layer";
+  | "lookup_error";
 
 export interface AssetCacheMetricInput {
   outcome: AssetCacheOutcome;
@@ -26,20 +25,19 @@ export interface AssetCacheMetricInput {
   lookupMilliseconds: number;
 }
 
-export type WorkersCacheOutcome =
-  | "hit"
-  | "miss"
-  | "bypass"
-  | "fallback"
-  | "expired"
-  | "revalidated"
-  | "updating"
-  | "stale"
-  | "unknown";
+export type SiteRouteFamily =
+  | "canonical_redirect"
+  | "health"
+  | "invalid_path"
+  | "legacy_tile_redirect"
+  | "map_compat"
+  | "method_rejected"
+  | "robots"
+  | "static_miss"
+  | "unhandled_error";
 
-export interface WorkersCacheMetricInput {
-  outcome: WorkersCacheOutcome;
-  cacheStatus: string;
+export interface SiteRouteMetricInput {
+  routeFamily: SiteRouteFamily;
   method: string;
   hostname: string;
   assetPath: string;
@@ -48,8 +46,6 @@ export interface WorkersCacheMetricInput {
   workerVersionId: string;
   workerVersionTag: string;
   status: number;
-  responseBytes: number;
-  gatewayMilliseconds: number;
 }
 
 export interface AssetMetricDimensions {
@@ -163,60 +159,43 @@ export function writeAssetCacheMetric(
 }
 
 /**
- * Analytics Engine fields for workers_cache_v1:
+ * Analytics Engine fields for site_route_v1:
  * index1: hostname|release
- * blob1..15: schema, outcome, method, hostname, asset type, map dataset,
- *              Project Zomboid floor layer, asset path, Cloudflare colo,
- *              release, response status, Deep Zoom pyramid level,
- *              raw Workers Cache status, Worker version ID,
- *              Worker version tag
- * double1..4: requests, response bytes, cache-hit bytes, gateway ms
+ * blob1..10: schema, route family, method, hostname, asset path, Cloudflare
+ *             colo, release, response status, Worker version ID, version tag
+ * double1: requests
  */
-export function buildWorkersCacheMetricDataPoint(
-  input: WorkersCacheMetricInput,
+export function buildSiteRouteMetricDataPoint(
+  input: SiteRouteMetricInput,
 ): AnalyticsEngineDataPoint {
-  const dimensions = assetMetricDimensions(input.assetPath);
-  const responseBytes = nonNegativeFinite(input.responseBytes);
-  const gatewayMilliseconds = nonNegativeFinite(input.gatewayMilliseconds);
-
   return {
     indexes: [`${input.hostname}|${input.release}`],
     blobs: [
-      WORKERS_CACHE_METRIC_SCHEMA,
-      input.outcome,
+      SITE_ROUTE_METRIC_SCHEMA,
+      input.routeFamily,
       input.method,
       input.hostname,
-      dimensions.assetType,
-      dimensions.mapLayer,
-      dimensions.floorLayer,
       input.assetPath.slice(0, MAX_METRIC_ASSET_PATH_LENGTH),
       input.colo,
       input.release,
       String(input.status),
-      dimensions.pyramidLevel,
-      input.cacheStatus.slice(0, 64),
       input.workerVersionId,
       input.workerVersionTag,
     ],
-    doubles: [
-      1,
-      responseBytes,
-      input.outcome === "hit" ? responseBytes : 0,
-      gatewayMilliseconds,
-    ],
+    doubles: [1],
   };
 }
 
-export function writeWorkersCacheMetric(
+export function writeSiteRouteMetric(
   dataset: AnalyticsEngineDataset,
-  input: WorkersCacheMetricInput,
+  input: SiteRouteMetricInput,
 ): void {
   try {
-    dataset.writeDataPoint(buildWorkersCacheMetricDataPoint(input));
+    dataset.writeDataPoint(buildSiteRouteMetricDataPoint(input));
   } catch (error: unknown) {
     console.error(JSON.stringify({
-      message: "workers cache metric write failed",
-      outcome: input.outcome,
+      message: "site route metric write failed",
+      route_family: input.routeFamily,
       path: input.assetPath.slice(0, MAX_METRIC_ASSET_PATH_LENGTH),
       error: error instanceof Error ? error.message : String(error),
     }));

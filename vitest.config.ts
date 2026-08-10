@@ -9,9 +9,8 @@ export default defineConfig({
         bindings: {
           ACTIVE_RELEASE: "pilot-b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
           EXPECTED_MANIFEST_SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          CLIENT_ASSET_RELEASE: "pilot-client-r1",
-          CLIENT_ASSET_MANIFEST_SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
           CANONICAL_HOST: "fanmap42.com",
+          DIRECT_TILE_ORIGIN: "https://tiles.fanmap42.com",
         },
       },
     }),

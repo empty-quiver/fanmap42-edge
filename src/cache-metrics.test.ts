@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CACHE_METRIC_SCHEMA,
   MAX_METRIC_ASSET_PATH_LENGTH,
-  WORKERS_CACHE_METRIC_SCHEMA,
+  SITE_ROUTE_METRIC_SCHEMA,
   assetMetricDimensions,
   buildAssetCacheMetricDataPoint,
-  buildWorkersCacheMetricDataPoint,
+  buildSiteRouteMetricDataPoint,
 } from "./cache-metrics";
 
 const workerVersion = {
@@ -148,57 +148,31 @@ describe("buildAssetCacheMetricDataPoint", () => {
   });
 });
 
-describe("buildWorkersCacheMetricDataPoint", () => {
-  it("records an outer cache hit independently from the Cache API schema", () => {
-    const point = buildWorkersCacheMetricDataPoint({
+describe("buildSiteRouteMetricDataPoint", () => {
+  it("records the compatibility route family independently from R2 cache outcomes", () => {
+    const point = buildSiteRouteMetricDataPoint({
       ...workerVersion,
-      outcome: "hit",
-      cacheStatus: "HIT",
+      routeFamily: "legacy_tile_redirect",
       method: "GET",
       hostname: "staging.fanmap42.com",
       assetPath: "map_data/base/layer16_files/19/97_62.webp",
       colo: "BOS",
       release: "release-r1",
-      status: 200,
-      responseBytes: 512,
-      gatewayMilliseconds: 0.75,
+      status: 308,
     });
 
     expect(point.blobs).toEqual([
-      WORKERS_CACHE_METRIC_SCHEMA,
-      "hit",
+      SITE_ROUTE_METRIC_SCHEMA,
+      "legacy_tile_redirect",
       "GET",
       "staging.fanmap42.com",
-      "tile",
-      "base",
-      "16",
       "map_data/base/layer16_files/19/97_62.webp",
       "BOS",
       "release-r1",
-      "200",
-      "19",
-      "HIT",
+      "308",
       workerVersion.workerVersionId,
       workerVersion.workerVersionTag,
     ]);
-    expect(point.doubles).toEqual([1, 512, 512, 0.75]);
-  });
-
-  it("does not count misses as cache-hit bytes", () => {
-    const point = buildWorkersCacheMetricDataPoint({
-      ...workerVersion,
-      outcome: "miss",
-      cacheStatus: "MISS",
-      method: "GET",
-      hostname: "staging.fanmap42.com",
-      assetPath: "probe.txt",
-      colo: "unknown",
-      release: "release-r1",
-      status: 200,
-      responseBytes: 64,
-      gatewayMilliseconds: Number.NaN,
-    });
-
-    expect(point.doubles).toEqual([1, 64, 0, 0]);
+    expect(point.doubles).toEqual([1]);
   });
 });
