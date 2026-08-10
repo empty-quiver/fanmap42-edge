@@ -6,6 +6,7 @@
   "map_manifest_sha256": "d7d846b5136786b8b8016d6b9416b4de789e86ad19884fd4dda44ecd6e69c5db",
   "tile_origin": "https://tiles.fanmap42.com",
   "supported_clients": {
+    "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r4": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
     "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r6": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
     "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r7": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
     "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r8": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r2"

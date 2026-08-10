@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { buildSite, validateMapRoute } from "./build-site.mjs";
 
 const clients = {
+  "client-r4": "map-r1",
   "client-r6": "map-r1",
   "client-r7": "map-r1",
   "client-r8": "map-r2",
@@ -80,7 +81,7 @@ test("builds a static-only site with operational assets", async () => {
     const output = join(root, "output");
 
     assert.equal(result.client_release, "client-r8");
-    assert.deepEqual(result.supported_clients, ["client-r6", "client-r7", "client-r8"]);
+    assert.deepEqual(result.supported_clients, ["client-r4", "client-r6", "client-r7", "client-r8"]);
     assert.match(await readFile(join(output, "robots.txt"), "utf8"), /User-agent: \*/);
     const health = JSON.parse(await readFile(join(output, ".well-known/fanmap42-health"), "utf8"));
     assert.deepEqual({ status: health.status, delivery: health.delivery },
