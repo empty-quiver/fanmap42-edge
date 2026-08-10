@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fanmap42-hottiles-staging",
+  "compatibility_date": "2026-08-08",
+  "workers_dev": false,
+  "assets": {
+    "directory": "./.generated/hottiles/staging",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "run_worker_first": false
+  },
+  "routes": [
+    { "pattern": "hottiles-staging.fanmap42.com", "custom_domain": true }
+  ]
+}

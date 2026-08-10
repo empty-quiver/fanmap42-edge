@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fanmap42-site-local",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "workers_dev": true,
+  "vars": {
+    "ACTIVE_RELEASE": "local-map-r1",
+    "EXPECTED_MANIFEST_SHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "CLIENT_ASSET_RELEASE": "local-client-r1",
+    "CLIENT_ASSET_MANIFEST_SHA256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "CANONICAL_HOST": "localhost",
+    "USE_WORKERS_CACHE_GATEWAY": "1",
+    "READINESS_CACHE_SECONDS": "5",
+    "NEGATIVE_TILE_CACHE_SECONDS": "5",
+    "NEGATIVE_METADATA_CACHE_SECONDS": "5",
+    "NEGATIVE_VIEWER_ASSET_CACHE_SECONDS": "5",
+    "ENFORCE_MAP_LAYER_BOUNDS": "1",
+    "MAP_LAYER_MIN": "-17",
+    "MAP_LAYER_MAX_EXCLUSIVE": "30"
+  },
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "fanmap42-local" }
+  ],
+  "analytics_engine_datasets": [
+    { "binding": "CACHE_METRICS", "dataset": "fanmap42_cache_local" }
+  ]
+}

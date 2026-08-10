@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.wrangler/
+.generated/
+
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+.DS_Store
+.env
+.env.*
+!.env.example

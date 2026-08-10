@@ -1,0 +1,54 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fanmap42-site",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "cache": {
+    "enabled": true,
+    "cross_version_cache": false
+  },
+  "exports": {
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "AssetBackend": { "type": "worker", "cache": { "enabled": true } }
+  },
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "workers_dev": false,
+  "assets": {
+    "directory": "./.generated/site/production",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none",
+    "run_worker_first": false
+  },
+  "routes": [
+    { "pattern": "fanmap42.com", "custom_domain": true }
+  ],
+  "vars": {
+    "ACTIVE_RELEASE": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r2",
+    "EXPECTED_MANIFEST_SHA256": "d7d846b5136786b8b8016d6b9416b4de789e86ad19884fd4dda44ecd6e69c5db",
+    "CLIENT_ASSET_RELEASE": "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r8",
+    "CLIENT_ASSET_MANIFEST_SHA256": "d5f92839830309ffe29385b6bb9f79c3aa3850fdfdb560fdde169bfad32f1df4",
+    "CANONICAL_HOST": "fanmap42.com",
+    "USE_WORKERS_CACHE_GATEWAY": "1",
+    "READINESS_CACHE_SECONDS": "86400",
+    "NEGATIVE_TILE_CACHE_SECONDS": "2592000",
+    "NEGATIVE_METADATA_CACHE_SECONDS": "300",
+    "NEGATIVE_VIEWER_ASSET_CACHE_SECONDS": "300",
+    "ENFORCE_MAP_LAYER_BOUNDS": "0",
+    "MAP_LAYER_MIN": "-17",
+    "MAP_LAYER_MAX_EXCLUSIVE": "30"
+  },
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "fanmap42" }
+  ],
+  "analytics_engine_datasets": [
+    { "binding": "CACHE_METRICS", "dataset": "fanmap42_cache_production" }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.01,
+    "logs": { "enabled": true, "head_sampling_rate": 0.01 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.001 }
+  }
+}

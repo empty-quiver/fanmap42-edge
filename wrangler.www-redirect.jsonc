@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fanmap42-www-redirect",
+  "main": "src/www-redirect.ts",
+  "compatibility_date": "2026-08-08",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "www.fanmap42.com/*", "zone_name": "fanmap42.com" }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
+}

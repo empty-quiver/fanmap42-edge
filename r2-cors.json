@@ -1,0 +1,25 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://fanmap42.com",
+          "https://www.fanmap42.com",
+          "https://staging.fanmap42.com",
+          "https://fanmap42-site-staging.janet-a0d.workers.dev"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": ["If-Modified-Since", "If-None-Match", "Range"]
+      },
+      "exposeHeaders": [
+        "Accept-Ranges",
+        "Cache-Control",
+        "Content-Length",
+        "Content-Range",
+        "Content-Type",
+        "ETag"
+      ],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}
