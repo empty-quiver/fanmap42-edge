@@ -119,14 +119,26 @@ npm ci
 npm run check
 ```
 
-Build and run the viewer from assembled viewer and map-release directories:
+Build the site from the assembled release, the matching PZMap viewer source,
+and the map-release metadata:
 
 ```sh
 npm run build:site -- \
   --source /path/to/assembled/viewer \
-  --map-source /path/to/map/release
+  --map-source /path/to/map/release \
+  --viewer-source /path/to/pzmap2dzi/html
 npm run dev
 ```
+
+The site builder renders the active release prefix into the canonical
+`pzmap.html`, verifies every source-controlled viewer asset against both the
+root and immutable `_client/<release>/` copies, and then writes those assets
+into the bundle. Retained older clients remain immutable inputs.
+
+`site/production.json` records the canonical renderer and viewer commits. If
+an immutable release was assembled before its source history was reconciled,
+`release_provenance` separately records the commit IDs frozen into that
+release's `RELEASE.json`.
 
 Build hottiles from a rendered `map_data` directory:
 

@@ -22,11 +22,49 @@ const provenance = {
   viewer_commit: "e".repeat(40),
   tree_render_manifest_sha256: "f".repeat(64),
 };
+const canonicalViewer = new Map([
+  ["LICENSE-pzmap2dzi.txt", "MIT\n"],
+  ["map.png", "png\n"],
+  ["openseadragon/LICENSE.txt", "OSD license\n"],
+  ["openseadragon/modify_notice.md", "notice\n"],
+  ["openseadragon/openseadragon.zip", "zip\n"],
+  ["pzmap.css", "body {}\n"],
+  ["pzmap.html", '<link rel="icon" href="map.png">\n' +
+    '<script>window.FANMAP42_CLIENT_ASSET_BASE = "";</script>\n' +
+    '<script src="openseadragon/openseadragon.js"></script>\n' +
+    '<link rel="stylesheet" href="pzmap.css">\n' +
+    '<script src="pzmap.js"></script>\n'],
+  ["pzmap.js", "import './pzmap/globals.js';\n"],
+  ["pzmap/globals.js", "export const viewer = true;\n"],
+]);
 
 async function write(root, path, bytes) {
   const target = join(root, path);
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, bytes);
+}
+
+function assembledViewer() {
+  const base = "/_client/client-r8/";
+  return new Map([...canonicalViewer].map(([path, bytes]) => [
+    path,
+    path === "pzmap.html"
+      ? bytes
+        .replace('href="map.png"', `href="${base}map.png"`)
+        .replace('window.FANMAP42_CLIENT_ASSET_BASE = "";',
+          `window.FANMAP42_CLIENT_ASSET_BASE = "${base}";`)
+        .replace('src="openseadragon/openseadragon.js"',
+          `src="${base}openseadragon/openseadragon.js"`)
+        .replace('href="pzmap.css"', `href="${base}pzmap.css"`)
+        .replace('src="pzmap.js"', `src="${base}pzmap.js"`)
+      : bytes,
+  ]));
+}
+
+async function createViewerSource(root) {
+  const source = join(root, "viewer-source");
+  for (const [path, bytes] of canonicalViewer) await write(source, path, bytes);
+  return source;
 }
 
 async function createSource(root) {
@@ -38,6 +76,10 @@ async function createSource(root) {
     ["pzmap.html", "<!doctype html><title>FanMap42</title>\n"],
     ["pzmap_config.json", `${JSON.stringify({ route: { default: route("map-r2") } })}\n`],
   ]);
+  for (const [path, bytes] of assembledViewer()) {
+    assets.set(path, bytes);
+    assets.set(`_client/client-r8/${path}`, bytes);
+  }
   for (const [client, mapRelease] of Object.entries(clients)) {
     assets.set(`_client/${client}/pzmap_config.json`,
       `${JSON.stringify({ route: { default: route(mapRelease) } })}\n`);
@@ -96,12 +138,14 @@ test("builds a static-only site with operational assets", async () => {
   const root = await mkdtemp(join(tmpdir(), "fanmap42-site-test-"));
   try {
     const { source, manifestHash } = await createSource(root);
+    const viewerSource = await createViewerSource(root);
     const mapSource = await createMapSource(root);
     const configPath = await writeConfig(root, manifestHash, mapSource.manifestHash);
     const result = await buildSite({
       configPath,
       sourceRoot: source,
       mapSourceRoot: mapSource.source,
+      viewerSourceRoot: viewerSource,
     });
     const output = join(root, "output");
 
@@ -118,7 +162,9 @@ test("builds a static-only site with operational assets", async () => {
     assert.match(headers, /\/robots\.txt\n  Content-Type: text\/plain/);
     assert.equal(await readFile(join(output, "_redirects"), "utf8"), "/keep /other 302\n");
     assert.equal(await readFile(join(output, "pzmap.html"), "utf8"),
-      "<!doctype html><title>FanMap42</title>\n");
+      assembledViewer().get("pzmap.html"));
+    assert.equal(await readFile(join(output, "_client/client-r8/pzmap.html"), "utf8"),
+      assembledViewer().get("pzmap.html"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
