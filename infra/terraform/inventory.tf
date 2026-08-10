@@ -1,9 +1,9 @@
 locals {
   worker_names = {
-    site        = "fanmap42-site"
-    staging     = "fanmap42-site-staging"
-    hottiles    = "fanmap42-hottiles"
-    redirect    = "fanmap42-www-redirect"
+    site     = "fanmap42-site"
+    staging  = "fanmap42-site-staging"
+    hottiles = "fanmap42-hottiles"
+    redirect = "fanmap42-www-redirect"
   }
 
   managed_domains = [
