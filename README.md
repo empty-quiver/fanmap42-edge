@@ -36,8 +36,8 @@ same-origin tile URLs. Other Static Assets misses return 404 without probing R2.
 The site can drop its Worker entirely once every supported viewer loads
 `/map_data/` metadata from the release-qualified tile origin. Before that
 cutover, verify the metadata redirects, CORS, conditional requests, and error
-behavior in staging, then confirm route telemetry no longer shows a required
-`map_compat` request in production. At that point `robots.txt` and the health
+behavior on a 0%-traffic production candidate, then confirm route telemetry no
+longer shows a required `map_compat` request. At that point `robots.txt` and the health
 document become ordinary assets, the legacy tile redirect moves to an edge
 redirect rule, and the site configuration can remove `main`, R2, Analytics
 Engine, version metadata, and all Worker variables.
@@ -67,8 +67,10 @@ The build validates the manifest hash and asset limits, copies in parallel, and
 atomically creates `.generated/hottiles/production`. It refuses to overwrite an
 existing bundle. Building does not upload or deploy anything.
 
-Wrangler's default configuration is local-only. Production and staging use
-explicit configuration files so an unqualified command cannot target them.
+Wrangler's default configuration is local-only. Production uses explicit
+configuration files so an unqualified command cannot target it. Release
+candidates are uploaded as 0%-traffic Worker versions and promoted through the
+same production route only after validation.
 
 ## Infrastructure
 

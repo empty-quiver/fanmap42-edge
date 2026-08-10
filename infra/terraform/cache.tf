@@ -28,23 +28,5 @@ resource "cloudflare_ruleset" "cache_settings" {
         }
       }
     },
-    {
-      action      = "set_cache_settings"
-      description = "Staging immutable R2 tiles: 30d negative cache"
-      enabled     = true
-      expression  = "(http.host eq \"tiles-staging.fanmap42.com\" and (starts_with(http.request.uri.path, \"/releases/b42.20-steam24574865-pzmap53b73b8-fma485d32-r1/map_data/\") or starts_with(http.request.uri.path, \"/releases/b42.20-steam24574865-pzmap53b73b8-fma485d32-r1-treeclip1/map_data/\")))"
-      ref         = "fe2034c963c74966901aec8f41f121de"
-      action_parameters = {
-        cache = true
-        edge_ttl = {
-          mode = "respect_origin"
-          status_code_ttl = [
-            { status_code = 404, value = 2592000 },
-            { status_code = 410, value = 2592000 },
-            { status_code_range = { from = 500, to = 599 }, value = -1 },
-          ]
-        }
-      }
-    },
   ]
 }

@@ -4,9 +4,7 @@
       "allowed": {
         "origins": [
           "https://fanmap42.com",
-          "https://www.fanmap42.com",
-          "https://staging.fanmap42.com",
-          "https://fanmap42-site-staging.janet-a0d.workers.dev"
+          "https://www.fanmap42.com"
         ],
         "methods": ["GET", "HEAD"],
         "headers": ["If-Modified-Since", "If-None-Match", "Range"]

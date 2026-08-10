@@ -27,8 +27,3 @@ import {
   to = cloudflare_r2_bucket.production
   id = "a0da07c153637fe8add0d404bfc480ad/fanmap42/default"
 }
-
-import {
-  to = cloudflare_r2_bucket.staging_fixture
-  id = "a0da07c153637fe8add0d404bfc480ad/fanmap42-staging-fixture/default"
-}
