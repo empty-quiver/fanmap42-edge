@@ -20,6 +20,7 @@ available from hottiles. Tiles not included in hottiles are fetched from R2.
 
 - `site/` describes the viewer bundle and retained client releases.
 - `hottiles/` describes the hottiles bundle.
+- `releases.json` lists the map releases served by the tile CDN.
 - `scripts/` contains the builders for those bundles.
 - `infra/terraform/` describes the persistent Cloudflare resources around the
   tile origin.
@@ -37,10 +38,12 @@ npm ci
 npm run check
 ```
 
-Build and run the viewer from an assembled viewer directory:
+Build and run the viewer from assembled viewer and map-release directories:
 
 ```sh
-npm run build:site -- --source /path/to/assembled/viewer
+npm run build:site -- \
+  --source /path/to/assembled/viewer \
+  --map-source /path/to/map/release
 npm run dev
 ```
 
@@ -59,3 +62,6 @@ Production builds use the committed files in `site/` and `hottiles/`. Wrangler
 publishes the resulting Static Assets bundles and controls Worker versions and
 traffic percentages. Terraform describes the R2 bucket and zone-level behavior;
 see [infra/terraform/README.md](infra/terraform/README.md).
+
+The `release:*:upload` commands upload a new Worker version without assigning
+traffic. Traffic changes are deliberately separate.

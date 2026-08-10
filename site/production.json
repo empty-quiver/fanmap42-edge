@@ -5,6 +5,13 @@
   "map_release": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r2",
   "map_manifest_sha256": "d7d846b5136786b8b8016d6b9416b4de789e86ad19884fd4dda44ecd6e69c5db",
   "tile_origin": "https://tiles.fanmap42.com",
+  "provenance": {
+    "source_appmanifest_sha256": "e051f2a6f7c6945622717283e6b8c35a6d35468f73ef9cbdbb816ac6936ee107",
+    "renderer_upstream_commit": "53b73b82a165b700cbd216b4f7982cc4e93ae546",
+    "render_commit": "a485d32503de7a68d1fcc4cb6408e0908ff26bb5",
+    "viewer_commit": "234ae4b1146357bcd7c983587edcf66956a47857",
+    "tree_render_manifest_sha256": "1618ef4a325a6a23d59a9820216cd9f805ca46270551080d46cfb312a05a4a37"
+  },
   "supported_clients": {
     "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r4": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
     "client-b42.20-steam24574865-pzmap53b73b8-fma485d32-r6": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",

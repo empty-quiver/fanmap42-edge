@@ -62,7 +62,7 @@ resource "cloudflare_ruleset" "tile_uri_normalization" {
       action      = "rewrite"
       description = "Immutable R2 tiles: strip query string"
       enabled     = true
-      expression  = "(http.host eq \"tiles.fanmap42.com\" and (starts_with(http.request.uri.path, \"/releases/b42.20-steam24574865-pzmap53b73b8-fma485d32-r1/map_data/\") or starts_with(http.request.uri.path, \"/releases/b42.20-steam24574865-pzmap53b73b8-fma485d32-r1-treeclip1/map_data/\")) and http.request.uri.query ne \"\")"
+      expression  = "(http.host eq \"tiles.fanmap42.com\" and (${local.immutable_tile_path_expression}) and http.request.uri.query ne \"\")"
       ref         = "447b45a3552140ed82983b15ebbea2ea"
       action_parameters = {
         uri = {

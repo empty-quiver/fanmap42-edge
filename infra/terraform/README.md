@@ -33,7 +33,13 @@ those resources.
 Terraform covers the `fanmap42` R2 bucket, tiered cache, cache settings, tile
 URL normalization, Worker version affinity, and the remaining tile redirect.
 
+The releases receiving tile cache rules come from the repository-level
+`releases.json`.
+
 It does not build or publish `fanmap42-site`, `fanmap42-hottiles`, or
 `fanmap42-www-redirect`. Those are versioned Static Assets/Worker releases
-managed with Wrangler. R2 CORS and the R2 custom domain are also currently
-outside this Terraform state.
+managed with Wrangler.
+
+Provider 5.22 cannot import an existing R2 CORS policy or custom domain. CORS is
+therefore kept in `r2-cors.json` and applied with Wrangler, while the existing
+`tiles.fanmap42.com` attachment remains outside Terraform state.

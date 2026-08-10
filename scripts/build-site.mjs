@@ -114,19 +114,40 @@ async function validateClientConfig(source, config, clientRelease, mapRelease, r
   validateMapRoute(config, candidate?.route?.default, mapRelease, path);
 }
 
-async function validateManifest(source, expectedHash) {
+async function validateManifest(source, expectedHash, label) {
   const manifestBytes = await readFile(join(source, "MANIFEST.sha256"));
   const actualHash = sha256(manifestBytes);
   if (actualHash !== expectedHash) {
-    throw new Error(`Client manifest hash mismatch: expected ${expectedHash}, got ${actualHash}`);
+    throw new Error(`${label} manifest hash mismatch: expected ${expectedHash}, got ${actualHash}`);
   }
   for (const line of manifestBytes.toString("utf8").trim().split(/\r?\n/)) {
     const match = line.match(/^([0-9a-f]{64})  \.\/(.+)$/);
     if (match === null) throw new Error(`Invalid MANIFEST.sha256 line: ${line}`);
     const path = safeRelativePath(match[2], "manifest path");
     const actual = sha256(await readFile(join(source, path)));
-    if (actual !== match[1]) throw new Error(`Client asset hash mismatch: ${path}`);
+    if (actual !== match[1]) throw new Error(`${label} asset hash mismatch: ${path}`);
   }
+}
+
+function validateProvenance(actual, expected) {
+  for (const [name, value] of Object.entries(expected)) {
+    if (actual?.[name] !== value) {
+      throw new Error(`RELEASE.json provenance mismatch for ${name}`);
+    }
+  }
+}
+
+async function validateMapReleaseSource(sourceRoot, config) {
+  const source = resolve(sourceRoot);
+  if (!(await stat(source)).isDirectory()) {
+    throw new Error(`Map release source is not a directory: ${source}`);
+  }
+  const ready = parseReady(await readFile(join(source, "READY"), "utf8"));
+  if (ready.get("release_id") !== config.map_release ||
+      ready.get("manifest_sha256") !== config.map_manifest_sha256) {
+    throw new Error("Map release READY does not match the configured release and manifest");
+  }
+  await validateManifest(source, config.map_manifest_sha256, "Map release");
 }
 
 export async function readSiteBuildConfig(configPath) {
@@ -139,8 +160,20 @@ export async function readSiteBuildConfig(configPath) {
   if (!HASH_PATTERN.test(config.client_manifest_sha256) || !HASH_PATTERN.test(config.map_manifest_sha256) ||
       config.supported_clients === null || typeof config.supported_clients !== "object" ||
       Array.isArray(config.supported_clients) ||
-      typeof config.output !== "string") {
+      typeof config.output !== "string" || config.provenance === null ||
+      typeof config.provenance !== "object") {
     throw new Error("Site build config is incomplete");
+  }
+  const provenancePatterns = {
+    source_appmanifest_sha256: HASH_PATTERN,
+    renderer_upstream_commit: /^[0-9a-f]{40}$/,
+    render_commit: /^[0-9a-f]{40}$/,
+    viewer_commit: /^[0-9a-f]{40}$/,
+    tree_render_manifest_sha256: HASH_PATTERN,
+  };
+  if (Object.entries(provenancePatterns).some(([name, pattern]) =>
+    typeof config.provenance[name] !== "string" || !pattern.test(config.provenance[name]))) {
+    throw new Error("Site build provenance is incomplete");
   }
   if (!RELEASE_PATTERN.test(config.client_release) || !RELEASE_PATTERN.test(config.map_release)) {
     throw new Error("Configured release IDs contain unsupported characters");
@@ -161,11 +194,14 @@ export async function readSiteBuildConfig(configPath) {
   return { ...config, configPath: absoluteConfig, outputPath: resolve(dirname(absoluteConfig), config.output) };
 }
 
-export async function buildSite({ configPath, sourceRoot, outputPath }) {
+export async function buildSite({ configPath, sourceRoot, mapSourceRoot, outputPath }) {
   const config = await readSiteBuildConfig(configPath);
   const source = resolve(sourceRoot);
   const output = outputPath === undefined ? config.outputPath : resolve(outputPath);
   if (!(await stat(source)).isDirectory()) throw new Error(`Site source is not a directory: ${source}`);
+  if (typeof mapSourceRoot !== "string" || mapSourceRoot === "") {
+    throw new Error("Map release source is required");
+  }
   if (await pathExists(output)) throw new Error(`Refusing to overwrite existing output: ${output}`);
 
   const ready = parseReady(await readFile(join(source, "READY"), "utf8"));
@@ -177,7 +213,9 @@ export async function buildSite({ configPath, sourceRoot, outputPath }) {
   if (release.release_id !== config.client_release || release.map_release !== config.map_release) {
     throw new Error("RELEASE.json does not match the configured client and map releases");
   }
-  await validateManifest(source, config.client_manifest_sha256);
+  validateProvenance(release, config.provenance);
+  await validateManifest(source, config.client_manifest_sha256, "Client");
+  await validateMapReleaseSource(mapSourceRoot, config);
   await validateClientConfig(source, config, config.client_release, config.map_release, true);
 
   const clientRoot = join(source, "_client");
@@ -210,6 +248,7 @@ export async function buildSite({ configPath, sourceRoot, outputPath }) {
       client_manifest_sha256: config.client_manifest_sha256,
       map_release: config.map_release,
       map_manifest_sha256: config.map_manifest_sha256,
+      provenance: config.provenance,
     };
     await mkdir(join(scratch, ".well-known"), { recursive: true });
     await writeFile(join(scratch, ".well-known", "fanmap42-health"), `${JSON.stringify(health)}\n`);
@@ -217,27 +256,30 @@ export async function buildSite({ configPath, sourceRoot, outputPath }) {
 
     const headersPath = join(scratch, "_headers");
     const headers = await readFile(headersPath, "utf8");
-    if (headers.includes("/.well-known/fanmap42-health") || headers.includes("/robots.txt")) {
-      throw new Error("Source _headers already defines static operational assets");
+    const hasHealthHeaders = headers.includes("/.well-known/fanmap42-health");
+    const hasRobotsHeaders = headers.includes("/robots.txt");
+    if (hasHealthHeaders !== hasRobotsHeaders) {
+      throw new Error("Source _headers contains an incomplete operational asset policy");
     }
-    await writeFile(headersPath, `${headers.trimEnd()}\n\n/.well-known/fanmap42-health\n` +
-      "  Content-Type: application/json; charset=utf-8\n" +
-      "  Cache-Control: no-store\n\n" +
-      "/robots.txt\n" +
-      "  Content-Type: text/plain; charset=utf-8\n" +
-      "  Cache-Control: public, max-age=3600\n");
+    if (!hasHealthHeaders) {
+      await writeFile(headersPath, `${headers.trimEnd()}\n\n/.well-known/fanmap42-health\n` +
+        "  Content-Type: application/json; charset=utf-8\n" +
+        "  Cache-Control: no-store\n\n" +
+        "/robots.txt\n" +
+        "  Content-Type: text/plain; charset=utf-8\n" +
+        "  Cache-Control: public, max-age=3600\n");
+    }
 
     const redirectsPath = join(scratch, "_redirects");
-    const redirects = await pathExists(redirectsPath) ? await readFile(redirectsPath, "utf8") : "";
-    if (/^\/map_data(?:\/|\s)/m.test(redirects)) {
-      throw new Error("Source _redirects already defines legacy map-data routing");
+    if (await pathExists(redirectsPath)) {
+      const redirects = (await readFile(redirectsPath, "utf8")).split(/\r?\n/);
+      const retained = redirects.filter((line) => !/^\/map_data(?:\/|\s)/.test(line));
+      if (retained.some((line) => line.trim() !== "")) {
+        await writeFile(redirectsPath, `${retained.join("\n").trimEnd()}\n`);
+      } else {
+        await rm(redirectsPath);
+      }
     }
-    const legacyMapDestination = `${directMapRoot(config.tile_origin, config.map_release)}:splat`;
-    await writeFile(
-      redirectsPath,
-      `${redirects.trimEnd()}${redirects.trim() === "" ? "" : "\n"}` +
-        `/map_data/* ${legacyMapDestination} 307\n`,
-    );
 
     await rename(scratch, output);
     return { output, client_release: config.client_release, map_release: config.map_release,
@@ -253,22 +295,27 @@ function parseArguments(argv) {
   const options = {
     configPath: new URL("../site/production.json", import.meta.url).pathname,
     sourceRoot: process.env.FANMAP42_SITE_SOURCE,
+    mapSourceRoot: process.env.FANMAP42_MAP_RELEASE_SOURCE,
     outputPath: undefined,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[index + 1];
-    if (["--config", "--source", "--output"].includes(argument) && value !== undefined) {
+    if (["--config", "--source", "--map-source", "--output"].includes(argument) && value !== undefined) {
       if (argument === "--config") options.configPath = value;
       if (argument === "--source") options.sourceRoot = value;
+      if (argument === "--map-source") options.mapSourceRoot = value;
       if (argument === "--output") options.outputPath = value;
       index += 1;
     } else {
-      throw new Error("Usage: npm run build:site -- --source SITE_DIR [--config FILE] [--output DIR]");
+      throw new Error("Usage: npm run build:site -- --source SITE_DIR --map-source MAP_RELEASE_DIR [--config FILE] [--output DIR]");
     }
   }
   if (typeof options.sourceRoot !== "string" || options.sourceRoot === "") {
     throw new Error("Set FANMAP42_SITE_SOURCE or pass --source SITE_DIR");
+  }
+  if (typeof options.mapSourceRoot !== "string" || options.mapSourceRoot === "") {
+    throw new Error("Set FANMAP42_MAP_RELEASE_SOURCE or pass --map-source MAP_RELEASE_DIR");
   }
   return options;
 }

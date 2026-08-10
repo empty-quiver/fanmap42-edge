@@ -15,6 +15,13 @@ const clients = {
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const route = (release) => `https://tiles.example/releases/${release}/map_data/`;
+const provenance = {
+  source_appmanifest_sha256: "b".repeat(64),
+  renderer_upstream_commit: "c".repeat(40),
+  render_commit: "d".repeat(40),
+  viewer_commit: "e".repeat(40),
+  tree_render_manifest_sha256: "f".repeat(64),
+};
 
 async function write(root, path, bytes) {
   const target = join(root, path);
@@ -25,8 +32,9 @@ async function write(root, path, bytes) {
 async function createSource(root) {
   const source = join(root, "source");
   const assets = new Map([
-    ["RELEASE.json", `${JSON.stringify({ release_id: "client-r8", map_release: "map-r2" })}\n`],
+    ["RELEASE.json", `${JSON.stringify({ release_id: "client-r8", map_release: "map-r2", ...provenance })}\n`],
     ["_headers", "/*\n  X-Content-Type-Options: nosniff\n"],
+    ["_redirects", "/keep /other 302\n/map_data/* https://old.example/:splat 307\n"],
     ["pzmap.html", "<!doctype html><title>FanMap42</title>\n"],
     ["pzmap_config.json", `${JSON.stringify({ route: { default: route("map-r2") } })}\n`],
   ]);
@@ -47,15 +55,27 @@ async function createSource(root) {
   return { source, manifestHash };
 }
 
-async function writeConfig(root, manifestHash) {
+async function createMapSource(root) {
+  const source = join(root, "map-source");
+  const releaseBytes = `${JSON.stringify({ release_id: "map-r2" })}\n`;
+  await write(source, "RELEASE.json", releaseBytes);
+  const manifest = `${sha256(releaseBytes)}  ./RELEASE.json\n`;
+  await write(source, "MANIFEST.sha256", manifest);
+  const manifestHash = sha256(manifest);
+  await write(source, "READY", `release_id=map-r2\nmanifest_sha256=${manifestHash}\n`);
+  return { source, manifestHash };
+}
+
+async function writeConfig(root, manifestHash, mapManifestHash) {
   const configPath = join(root, "production.json");
   await writeFile(configPath, `${JSON.stringify({
     schema: "fanmap42.site-build.v1",
     client_release: "client-r8",
     client_manifest_sha256: manifestHash,
     map_release: "map-r2",
-    map_manifest_sha256: "a".repeat(64),
+    map_manifest_sha256: mapManifestHash,
     tile_origin: "https://tiles.example",
+    provenance,
     supported_clients: clients,
     output: "output",
     max_assets: 100,
@@ -76,8 +96,13 @@ test("builds a static-only site with operational assets", async () => {
   const root = await mkdtemp(join(tmpdir(), "fanmap42-site-test-"));
   try {
     const { source, manifestHash } = await createSource(root);
-    const configPath = await writeConfig(root, manifestHash);
-    const result = await buildSite({ configPath, sourceRoot: source });
+    const mapSource = await createMapSource(root);
+    const configPath = await writeConfig(root, manifestHash, mapSource.manifestHash);
+    const result = await buildSite({
+      configPath,
+      sourceRoot: source,
+      mapSourceRoot: mapSource.source,
+    });
     const output = join(root, "output");
 
     assert.equal(result.client_release, "client-r8");
@@ -87,13 +112,11 @@ test("builds a static-only site with operational assets", async () => {
     assert.deepEqual({ status: health.status, delivery: health.delivery },
       { status: "ok", delivery: "static-assets" });
     assert.equal(health.client_manifest_sha256, manifestHash);
+    assert.deepEqual(health.provenance, provenance);
     const headers = await readFile(join(output, "_headers"), "utf8");
     assert.match(headers, /\/\.well-known\/fanmap42-health\n  Content-Type: application\/json/);
     assert.match(headers, /\/robots\.txt\n  Content-Type: text\/plain/);
-    assert.equal(
-      await readFile(join(output, "_redirects"), "utf8"),
-      "/map_data/* https://tiles.example/releases/map-r2/map_data/:splat 307\n",
-    );
+    assert.equal(await readFile(join(output, "_redirects"), "utf8"), "/keep /other 302\n");
     assert.equal(await readFile(join(output, "pzmap.html"), "utf8"),
       "<!doctype html><title>FanMap42</title>\n");
   } finally {

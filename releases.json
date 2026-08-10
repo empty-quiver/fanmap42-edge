@@ -1,0 +1,9 @@
+{
+  "schema": "fanmap42.edge-releases.v1",
+  "active_map_release": "b42.20-steam24574865-pzmap53b73b8-fma485d32-r2",
+  "tile_releases": [
+    "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1",
+    "b42.20-steam24574865-pzmap53b73b8-fma485d32-r1-treeclip1",
+    "b42.20-steam24574865-pzmap53b73b8-fma485d32-r2"
+  ]
+}

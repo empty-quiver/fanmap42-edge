@@ -14,7 +14,7 @@ resource "cloudflare_ruleset" "cache_settings" {
       action      = "set_cache_settings"
       description = "Cache immutable R2 tile origin"
       enabled     = true
-      expression  = "(http.host eq \"tiles.fanmap42.com\" and (starts_with(http.request.uri.path, \"/releases/b42.20-steam24574865-pzmap53b73b8-fma485d32-r1/map_data/\") or starts_with(http.request.uri.path, \"/releases/b42.20-steam24574865-pzmap53b73b8-fma485d32-r1-treeclip1/map_data/\")))"
+      expression  = "(http.host eq \"tiles.fanmap42.com\" and (${local.immutable_tile_path_expression}))"
       ref         = "35a215b7ccd14ba1acb5c2f1f991b000"
       action_parameters = {
         cache = true
