@@ -86,11 +86,19 @@ browser and edge cache lifetimes. Stable viewer entry points remain
 revalidatable so a new client release can take effect without cache-busting
 URLs.
 
+The one-year tile policy is object metadata, not a response-header rewrite.
+Map uploads store `Cache-Control: public, max-age=31536000, immutable` on every
+release object through R2's S3-compatible API (for example, rclone's
+`--header-upload` or Wrangler's `--cache-control`). Server-side copies preserve
+that metadata. Changing it later requires rewriting or copying the object; the
+release inventory only records the expected value.
+
 For direct R2 traffic, Cloudflare strips query strings from immutable tile URLs
-before cache lookup, uses Smart Tiered Cache, and caches known `404`/`410`
-responses. The client-side existence manifest prevents most missing-tile
-requests; negative edge caching handles older clients and any gaps the client
-cannot classify. Server errors are not cached.
+before cache lookup and respects the stored object policy. Smart Tiered Cache
+reduces cold reads, and known `404`/`410` responses are cached for 30 days. The
+client-side existence manifest prevents most missing-tile requests; negative
+edge caching handles older clients and any gaps the client cannot classify.
+Server errors are not cached.
 
 Together, these layers keep the common path on Static Assets or in Cloudflare's
 cache, avoid Worker runtime execution for the viewer and tiles, and reserve R2

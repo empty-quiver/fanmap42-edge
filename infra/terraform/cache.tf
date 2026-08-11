@@ -19,6 +19,7 @@ resource "cloudflare_ruleset" "cache_settings" {
       action_parameters = {
         cache = true
         edge_ttl = {
+          # Successful tile TTL comes from Cache-Control stored on each R2 object.
           mode = "respect_origin"
           status_code_ttl = [
             { status_code = 404, value = 2592000 },

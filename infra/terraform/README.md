@@ -11,6 +11,13 @@ tile responses without checking R2 again. Smart Tiered Cache reduces duplicate
 origin reads across edge locations, and query strings are removed from tile
 cache keys so equivalent requests share the same cached object.
 
+Successful-response lifetime comes from HTTP metadata stored on each R2 object
+when the release is uploaded. Tile objects carry
+`Cache-Control: public, max-age=31536000, immutable`; server-side copies must
+preserve it. The cache rule deliberately uses `respect_origin` rather than
+duplicating that value in a response transform. Existing object metadata is not
+changed by Terraform and must be replaced with an object rewrite or copy.
+
 Missing tiles are expected in a sparse map. The cache rules retain `404` and
 `410` responses for 30 days, which prevents repeated R2 lookups for known gaps.
 Server errors are not cached.
