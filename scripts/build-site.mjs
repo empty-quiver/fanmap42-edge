@@ -93,7 +93,7 @@ async function copyFiles(paths, source, destination, maxAssetBytes) {
   return bytes;
 }
 
-function renderViewerHtml(source, clientRelease) {
+export function renderViewerHtml(source, clientRelease) {
   const base = `/_client/${clientRelease}/`;
   const replacements = [
     ['href="map.png"', `href="${base}map.png"`],
@@ -106,10 +106,11 @@ function renderViewerHtml(source, clientRelease) {
   ];
   let output = source;
   for (const [marker, replacement] of replacements) {
-    if (!output.includes(marker)) {
+    if (output.includes(marker)) {
+      output = output.replace(marker, replacement);
+    } else if (!output.includes(replacement)) {
       throw new Error(`Canonical pzmap.html is missing release marker: ${marker}`);
     }
-    output = output.replace(marker, replacement);
   }
   return output;
 }
@@ -156,6 +157,9 @@ async function writeViewerAssets(destination, assets, clientRelease) {
       await writeFile(target, bytes);
     }
   }
+  const viewerHtml = assets.get("pzmap.html");
+  if (viewerHtml === undefined) throw new Error("Canonical viewer is missing pzmap.html");
+  await writeFile(join(destination, "index.html"), viewerHtml);
 }
 
 function parseReady(text) {
@@ -325,7 +329,12 @@ export async function buildSite({ configPath, sourceRoot, mapSourceRoot, viewerS
   }
 
   const paths = await walkFiles(source);
-  const deployableAssets = paths.filter((path) => path !== "_headers" && path !== "_redirects").length + 2;
+  const deployableAssets = new Set([
+    ...paths.filter((path) => path !== "_headers" && path !== "_redirects"),
+    "index.html",
+    ".well-known/fanmap42-health",
+    "robots.txt",
+  ]).size;
   if (deployableAssets > config.max_assets) {
     throw new Error(`Site bundle would contain ${deployableAssets} assets; limit is ${config.max_assets}`);
   }

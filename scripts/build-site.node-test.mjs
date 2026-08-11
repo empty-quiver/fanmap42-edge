@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { buildSite, validateMapRoute } from "./build-site.mjs";
+import { buildSite, renderViewerHtml, validateMapRoute } from "./build-site.mjs";
 
 const clients = {
   "client-r4": "map-r1",
@@ -73,6 +73,7 @@ async function createSource(root) {
     ["RELEASE.json", `${JSON.stringify({ release_id: "client-r8", map_release: "map-r2", ...provenance })}\n`],
     ["_headers", "/*\n  X-Content-Type-Options: nosniff\n"],
     ["_redirects", "/keep /other 302\n/map_data/* https://old.example/:splat 307\n"],
+    ["index.html", "<!doctype html><title>stale release</title>\n"],
     ["pzmap.html", "<!doctype html><title>FanMap42</title>\n"],
     ["pzmap_config.json", `${JSON.stringify({ route: { default: route("map-r2") } })}\n`],
   ]);
@@ -87,7 +88,7 @@ async function createSource(root) {
   for (const [path, bytes] of assets) await write(source, path, bytes);
 
   const manifest = [...assets.entries()]
-    .filter(([path]) => path !== "_headers")
+    .filter(([path]) => path !== "_headers" && path !== "index.html")
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([path, bytes]) => `${sha256(bytes)}  ./${path}`)
     .join("\n") + "\n";
@@ -134,6 +135,12 @@ test("rejects a viewer route that would re-enter the site Worker", () => {
   );
 });
 
+test("accepts an already versioned finalized viewer", () => {
+  const html = assembledViewer().get("pzmap.html");
+  assert.equal(renderViewerHtml(html, "client-r8"), html);
+  assert.throws(() => renderViewerHtml(html, "client-r9"), /missing release marker/);
+});
+
 test("builds a static-only site with operational assets", async () => {
   const root = await mkdtemp(join(tmpdir(), "fanmap42-site-test-"));
   try {
@@ -162,6 +169,8 @@ test("builds a static-only site with operational assets", async () => {
     assert.match(headers, /\/robots\.txt\n  Content-Type: text\/plain/);
     assert.equal(await readFile(join(output, "_redirects"), "utf8"), "/keep /other 302\n");
     assert.equal(await readFile(join(output, "pzmap.html"), "utf8"),
+      assembledViewer().get("pzmap.html"));
+    assert.equal(await readFile(join(output, "index.html"), "utf8"),
       assembledViewer().get("pzmap.html"));
     assert.equal(await readFile(join(output, "_client/client-r8/pzmap.html"), "utf8"),
       assembledViewer().get("pzmap.html"));
